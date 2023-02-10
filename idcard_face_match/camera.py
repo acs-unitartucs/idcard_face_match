@@ -341,9 +341,12 @@ def blend_images(background, foreground):
     t.snap("scale intensity2")
 
     # add foreground and background pixel values together
-    # np.add() cannot be used here, because pixel values can overflow 255
-    result = cv2.add(foreground.astype(np.uint8), background.astype(np.uint8))
-    t.snap("cv2.add()")
+    # we should use cv2.add() here because pixel values can overflow 255
+    # however, we use np.add() with the following workaround:
+    # (https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays)
+    result = np.add(foreground.astype(np.uint8), background.astype(np.uint8))
+    result[result < background.astype(np.uint8)] = 255
+    t.snap("np.add()")
     alpha = np.maximum(mask_foreground, mask_background)*255 # retain transparency for pixels that were transparent in both images
     t.snap("set alpha")
     result = np.concatenate([result, alpha], axis = 2)
@@ -404,7 +407,8 @@ def underlay_image_optimized(background, foreground_orig, x, y):
     t.snap("scale intensity2")
 
     # add foreground and background pixel values together
-    # np.add() cannot be used here, because pixel values can overflow 255
+    # we should use cv2.add() here, because pixel values can overflow 255
+    # but in practice data passed to this method is safe from overflows
     result = cv2.add(foreground.astype(np.uint8), background.astype(np.uint8))
     t.snap("cv2.add()")
 
