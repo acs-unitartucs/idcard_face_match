@@ -106,7 +106,9 @@ options:
 ```
 
 ## GPU acceleration
-To speed up face verification, `dlib` can use a CUDA-compatible NVIDIA graphics card if available.
+CUDA-compatible NVIDIA graphics card can be used to speed up face verification and image processing.
+
+To speed up face verification, `dlib` must be recompiled with CUDA support:
 
 Install CUDA library:
 ```shell
@@ -124,10 +126,20 @@ export CC=/usr/bin/gcc-10
 pip3 --verbose install dlib
   -- Enabling CUDA support for dlib.  DLIB WILL USE CUDA, compute capabilities: 50
 ```
-CUDA support is reported in the program output:
+
+To speed up image processing, `cupy` (CUDA-accelerated NumPy library) must be installed:
+
+Install `cupy` in the virtual environment:
+```shell
+source .venv/bin/activate
+pip3 install cupy-cuda11x
+```
+
+CUDA usage is reported in the program output:
 ```shell
 python3 -m idcard_face_match
 [+] camera(): dlib with CUDA: True
+[+] camera(): CUDA-enabled cupy: True
 ```
 
 ## Credits

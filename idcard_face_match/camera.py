@@ -11,7 +11,6 @@ from typing import Dict, List, Tuple, Union
 from queue import Queue
 import queue
 import time
-import copy
 import threading
 import os
 import tempfile
@@ -28,6 +27,20 @@ import idcard_face_match.globals as globals
 import pgi
 pgi.require_version('GdkPixbuf', '2.0')
 from pgi.repository import GdkPixbuf
+
+
+# check if cupy is available
+cupy = True
+try:
+    import cupy as cp
+except:
+    cupy = False
+
+def to_gpu(a):
+    return cp.asarray(a) if cupy else a
+
+def from_gpu(a):
+    return cp.asnumpy(a) if cupy else a
 
 # class to show timing
 class Timer():
@@ -311,10 +324,14 @@ def generate_match_percent_images(img, color, scale_factor):
 # add fully opaque alpha channel to the image
 def add_alpha(img):
     if img.shape[2] < 4:
+        if type(img)==np.ndarray:
+            ones = np.ones((img.shape[0], img.shape[1], 1), dtype = img.dtype) * 255
+        else: # assume cupy
+            ones = cp.ones((img.shape[0], img.shape[1], 1), dtype = img.dtype) * 255
         img = np.concatenate(
             [
                 img,
-                np.ones((img.shape[0], img.shape[1], 1), dtype = img.dtype) * 255
+                ones
             ],
             axis = 2,
         )
@@ -325,7 +342,6 @@ def remove_alpha(img):
     return img[..., :3]
 
 # blend two transparent images (of same dimensions) together
-# XXX - possible optimization using CUDA-enabled 'cupy' which is 'numpy' replacement
 def blend_images(background, foreground):
     t = Timer()
 
@@ -409,8 +425,8 @@ def underlay_image_optimized(background, foreground_orig, x, y):
     # add foreground and background pixel values together
     # we should use cv2.add() here, because pixel values can overflow 255
     # but in practice data passed to this method is safe from overflows
-    result = cv2.add(foreground.astype(np.uint8), background.astype(np.uint8))
-    t.snap("cv2.add()")
+    result = np.add(foreground.astype(np.uint8), background.astype(np.uint8))
+    t.snap("np.add()")
 
 #    alpha = np.ones((h, w, 1), dtype=np.uint8)*255 # fully opaque
 #    t.snap("set alpha")
@@ -627,6 +643,7 @@ def camera(
 
     # must return 'True' to make use of GPU
     print("[+] camera(): dlib with CUDA:", dlib.DLIB_USE_CUDA)
+    print("[+] camera(): CUDA-enabled cupy:", cupy)
 
     # window size (must be 16:9 in portrait mode)
     window_width, window_height = screen_width, int(screen_width/(9/16))
@@ -674,16 +691,15 @@ def camera(
     # load SVG UI design components
     overlay = load_svg("resources/overlay.svg", scale_factor)
     bottom_panel = load_svg("resources/bottom.svg", scale_factor, enlarge=1)
-    match = load_svg("resources/match_no.svg", scale_factor)
-    match_no = load_svg("resources/match_no.svg", scale_factor)
-    match_yes = load_svg("resources/match_yes.svg", scale_factor)
-    match_blank = load_svg("resources/match_blank.svg", scale_factor)
+    match_no = to_gpu(load_svg("resources/match_no.svg", scale_factor))
+    match_yes = to_gpu(load_svg("resources/match_yes.svg", scale_factor))
+    match_blank = to_gpu(load_svg("resources/match_blank.svg", scale_factor))
     match_no_percent = load_svg("resources/match_no_percent.svg", scale_factor)
     match_yes_percent = load_svg("resources/match_yes_percent.svg", scale_factor)
     downloaded_ellipse = load_svg("resources/downloaded_ellipse.svg", scale_factor)
     data_successfully_downloaded = load_svg("resources/data_successfully_downloaded.svg", scale_factor)
-    card_not_supported = load_svg("resources/card_not_supported.svg", scale_factor)
-    card_read_error = load_svg("resources/card_read_error.svg", scale_factor)
+    card_not_supported = to_gpu(load_svg("resources/card_not_supported.svg", scale_factor))
+    card_read_error = to_gpu(load_svg("resources/card_read_error.svg", scale_factor))
 
     # generate some of the UI components
     progress_bar_images = generate_progress_bar_images(196, 196, scale_factor)
@@ -719,7 +735,7 @@ def camera(
         errors[key] = generate_msgbox_image(errors[key], scale_factor, error=True)
 
     # remember the base overlay as we will later compose different overlays based on the events received
-    base_overlay = copy.deepcopy(overlay)
+    base_overlay = np.copy(overlay)
 
     # place the rounded reference face in the empty circle
     face_pos_x = 448
@@ -734,7 +750,7 @@ def camera(
     overlay = put_document_holders_name(overlay, sample_name, scale_factor)
 
     # remember the overlay of the matching against the ID card sample as we will later reuse it once the ID card is removed
-    sample_overlay = copy.deepcopy(overlay)
+    sample_overlay = np.copy(overlay)
 
     # add bottom panel
     bottom_pos_x = 65
@@ -774,6 +790,10 @@ def camera(
     fps = 0
     camera_fps = 0
 
+    bottom_panel = to_gpu(bottom_panel)
+    overlay = to_gpu(overlay)
+    sample_overlay = to_gpu(sample_overlay)
+
     window_title = "ID card face match"
     if fullscreen:
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
@@ -794,7 +814,7 @@ def camera(
         camera_frame = cv2.flip(frame, 1) # to have the mirror effect
         t.snap('Flip   camera frame')
 
-        camera_frame = copy.deepcopy(camera_frame)
+        camera_frame = np.copy(camera_frame)
         t.snap('Copy   camera frame')
 
         # perform cropping and resizing
@@ -838,8 +858,9 @@ def camera(
 
             t.snap('face matching: draw rectangle and put text on camera frame')
 
-
-        frame_shown = copy.deepcopy(overlay)
+        camera_frame = to_gpu(camera_frame)
+        frame_shown = np.copy(overlay)
+        t.snap('camera frame and shown frame: to gpu')
 
         # up/down sliding of the bottom panel
         if sliding_active:
@@ -893,11 +914,11 @@ def camera(
 
         # display FPS on screen if required
         if show_fps:
-            image = Image.fromarray(frame_shown)
+            image = Image.fromarray(from_gpu(frame_shown))
             draw = ImageDraw.Draw(image)
             text = 'FPS: %0.1f/%d' % (fps, camera_fps)
             draw.text((int(20*scale_factor), int(50*scale_factor)), text, (0, 0, 0), font=fps_font, anchor="ld")
-            frame_shown = np.array(image)
+            frame_shown = to_gpu(np.array(image))
             t.snap('text(): draw FPS')
 
 #        imgbytes = cv2.imencode(".png", frame_shown)[1].tobytes()
@@ -910,7 +931,7 @@ def camera(
             q_main.put("exit")
             return
 
-        cv2.imshow(window_title, frame_shown)
+        cv2.imshow(window_title, from_gpu(frame_shown))
         code = cv2.pollKey()
         if code == 27: # ESC - exit
             cv2.destroyAllWindows()
@@ -939,7 +960,7 @@ def camera(
             # document holder's photo has been downloaded from the chip
             if queue_element[0] == 'ID image':
                 # reset overlay to base overlay
-                overlay = copy.deepcopy(base_overlay)
+                overlay = np.copy(base_overlay)
                 # add document holder's face
                 try:
                     reference_face_rounded, reference_face_encoded = process_reference_face_jpg(queue_element[1], scale_factor)
@@ -957,6 +978,7 @@ def camera(
                 # show warnings
                 for i in range(len(warnings)):
                     overlay = overlay_image(errors[warnings[i]], overlay, activity_pos_x - errors[warnings[i]].shape[1]//2, activity_pos_y-int(i*140*scale_factor))
+                overlay = to_gpu(overlay)
 
             # document holder's name has been read from the personal data file
             elif queue_element[0] == 'ID name':
@@ -966,7 +988,7 @@ def camera(
             # the card has been removed
             elif queue_element[0] == 'Disconnect':
                 # reset overlay to sample overlay
-                overlay = copy.deepcopy(sample_overlay)
+                overlay = np.copy(sample_overlay)
                 reference_face_encoded = sample_face_encoded
                 matching_active = False
                 loading_active = False
@@ -989,9 +1011,10 @@ def camera(
                 sliding_direction = 'down'
                 current_activity = 'activity:establishing secure channel'
                 activity_start = time.time()
-                overlay = copy.deepcopy(base_overlay)
+                overlay = np.copy(base_overlay)
                 overlay = put_document_holders_name(overlay, "Loading data...", scale_factor)
                 overlay = overlay_image(progress_bar_images[0], overlay, int(progress_pos_x*scale_factor), int(progress_pos_y*scale_factor))
+                overlay = to_gpu(overlay)
 
             # an invalid card or unreadable card has been inserted
             elif queue_element[0] in ['Unknown card','Card read error']:
@@ -1000,9 +1023,10 @@ def camera(
                 sliding_active = True
                 sliding_start = time.time()
                 sliding_direction = 'down'
-                overlay = copy.deepcopy(base_overlay)
+                overlay = np.copy(base_overlay)
                 overlay = put_document_holders_name(overlay, "Loading data...", scale_factor)
                 overlay = overlay_image(progress_bar_images[0], overlay, int(progress_pos_x*scale_factor), int(progress_pos_y*scale_factor))
+                overlay = to_gpu(overlay)
 
             # process activities
             elif queue_element[0].startswith("activity:"):
@@ -1026,8 +1050,9 @@ def camera(
 
         if loading_active and not sliding_active:
             # reset overlay to base overlay and update progress bar
-            overlay = copy.deepcopy(base_overlay)
+            overlay = np.copy(base_overlay)
             overlay = put_document_holders_name(overlay, "Loading data...", scale_factor)
+            overlay = to_gpu(overlay)
 
             # print out current progress if progress changed
             if globals.progress != last_progress_value:
@@ -1036,7 +1061,7 @@ def camera(
 
             if last_progress_value > 99:
                 progress_image = downloaded_ellipse
-                overlay = overlay_image(data_successfully_downloaded, overlay, activity_pos_x - data_successfully_downloaded.shape[1]//2, activity_pos_y)
+                overlay = overlay_image(to_gpu(data_successfully_downloaded), overlay, activity_pos_x - data_successfully_downloaded.shape[1]//2, activity_pos_y)
             else:
                 progress_image = progress_bar_images[last_progress_value]
 
@@ -1053,14 +1078,14 @@ def camera(
 
                     opacities_cnt = len(activities[current_activity])
                     opacity_index = int(opacities_cnt*tdiff/activity_fade_cycle_half_time)
-                    overlay = overlay_image(activities[current_activity][opacity_index], overlay, activity_pos_x - activities[current_activity][opacity_index].shape[1]//2, activity_pos_y)
+                    overlay = overlay_image(to_gpu(activities[current_activity][opacity_index]), overlay, activity_pos_x - activities[current_activity][opacity_index].shape[1]//2, activity_pos_y)
 
                 # display error (the bottom panel must have slided off)
                 if error:
-                    overlay = overlay_image(errors[error], overlay, activity_pos_x - errors[error].shape[1]//2, activity_pos_y-int(140*scale_factor))
+                    overlay = overlay_image(to_gpu(errors[error]), overlay, activity_pos_x - errors[error].shape[1]//2, activity_pos_y-int(140*scale_factor))
 
 
-            overlay = overlay_image(progress_image, overlay, int(progress_pos_x*scale_factor), int(progress_pos_y*scale_factor))
+            overlay = overlay_image(to_gpu(progress_image), overlay, int(progress_pos_x*scale_factor), int(progress_pos_y*scale_factor))
 
 
 
