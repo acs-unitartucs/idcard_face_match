@@ -1076,8 +1076,10 @@ def camera(
                     if tdiff >= activity_fade_cycle_half_time:
                         tdiff = abs(tdiff % -activity_fade_cycle_half_time)
 
+                    tdiff_ratio = tdiff/activity_fade_cycle_half_time
+
                     opacities_cnt = len(activities[current_activity])
-                    opacity_index = int(opacities_cnt*tdiff/activity_fade_cycle_half_time)
+                    opacity_index = int(opacities_cnt*ease(tdiff_ratio))
                     overlay = overlay_image(to_gpu(activities[current_activity][opacity_index]), overlay, activity_pos_x - activities[current_activity][opacity_index].shape[1]//2, activity_pos_y)
 
                 # display error (the bottom panel must have slided off)
