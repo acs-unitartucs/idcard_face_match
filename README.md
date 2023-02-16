@@ -29,9 +29,6 @@ The **face verification** relies on [dlib](http://dlib.net/)'s face recognition 
 
 This software is based on the [eMRTD face access](https://github.com/Fethbita/eMRTD_face_access/) software developed by the Cyber Security MSc student [Burak Can Kus](https://burakcankus.com/) (University of Tartu) in the scope of his MSc [thesis](https://comserv.cs.ut.ee/ati_thesis/datasheet.php?id=72515&year=2021&language=en).
 
-
-<!-- ## In action -->
-
 ## Supported ID cards
 * Estonian identity card (issued after August 23, 2021). Older cards are not shipped with eMRTD applet.
 * Estonian residence permit card (issued after December 12, 2018). Older cards contain eMRTD applet on a separate contactless chip.
@@ -42,6 +39,10 @@ This software is based on the [eMRTD face access](https://github.com/Fethbita/eM
 * Smart card reader
 * Webcam
 * NVIDIA GPU graphics card (for faster frame rate)
+
+## In action
+
+![in action](resources/demo.gif)
 
 ## Installation (on Ubuntu 22.04)
 ```shell
