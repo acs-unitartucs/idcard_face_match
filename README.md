@@ -149,6 +149,9 @@ python3 -m idcard_face_match
 * Burak Can Kus: Programming
 * Geio Tischler: Design
 
-This work has been carried out with financial support from the Estonian Ministry of Economic Affairs and Communications.
+This work has been carried out with financial support from:
+
+* Estonian Ministry of Economic Affairs and Communications
+* European Social Fund via "ICT programme" measure
 
 © [Applied Cyber Security Group](https://acs.cs.ut.ee/), Institute of Computer Science, University of Tartu
