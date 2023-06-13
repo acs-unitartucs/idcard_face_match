@@ -610,7 +610,30 @@ def put_document_holders_name(img, text, scale_factor):
     font = ImageFont.truetype('resources/PlusJakartaSans-SemiBold.ttf', int(24*scale_factor))
     image = Image.fromarray(img)
     draw = ImageDraw.Draw(image)
-    draw.text((int(410*scale_factor), int(296*scale_factor)), text, (158, 158, 158), font=font, anchor="rd")
+    text2 = ""
+    text_length = int(draw.textlength(text, font))
+
+    # name too long -- splitting into two lines
+    if text_length > int(335*scale_factor):
+        names = text.split(" ")
+        namesl = [int(draw.textlength(name, font)) for name in names]
+        if len(names) == 1: # single line
+            pass
+        elif len(names) == 2: # each name on a separate line
+            text = names[0]
+            text2 = names[1]
+        else: # find optimal balance
+            avg = sum(namesl)/2
+            distances = []
+            for i in range(len(namesl)):
+                distances.append( abs(avg-sum(namesl[:i])) + abs(avg-sum(namesl[i:])) )
+            i = distances.index(min(distances))
+            text = " ".join(names[:i])
+            text2 = " ".join(names[i:])
+
+    draw.text((int(410*scale_factor), int(272*scale_factor)), text, (158, 158, 158), font=font, anchor="rt")
+    if text2:
+        draw.text((int(410*scale_factor), int(300*scale_factor)), text2, (158, 158, 158), font=font, anchor="rt")
     overlay = np.array(image)
     return overlay
 
