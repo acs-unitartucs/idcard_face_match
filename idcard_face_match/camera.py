@@ -236,7 +236,7 @@ def generate_progress_bar_images(w, h, scale_factor):
     draw = ImageDraw.Draw(alpha)
     pie_thickness = int(6*scale_factor)
     draw.pieslice([(pie_thickness*factor,pie_thickness*factor), (h*factor-pie_thickness*factor,w*factor-pie_thickness*factor)], 0, 360, fill=255)
-    alpha = alpha.resize((w, h), resample=Image.ANTIALIAS)
+    alpha = alpha.resize((w, h), resample=Image.LANCZOS)
     # apply alpha mask (circle) on the colored square to obtain a circle in gradient color
     gradient_circle = np.dstack((gradient, np.array(alpha)))
     # set all transparent pixels to black (this is needed as we will later sum pixel values when underlaying the image)
@@ -252,7 +252,7 @@ def generate_progress_bar_images(w, h, scale_factor):
     alpha = Image.new('L', [h*factor,w*factor], 0)
     draw = ImageDraw.Draw(alpha)
     draw.pieslice([(0,0), (h*factor,w*factor)], 0, 360, fill=255)
-    alpha = alpha.resize((w, h), resample=Image.ANTIALIAS)
+    alpha = alpha.resize((w, h), resample=Image.LANCZOS)
     # apply alpha mask (pie) on the colored square to obtain pie in 7D859D color
     white_circle = np.dstack((white, np.array(alpha)))
     # set all transparent pixels to black (this is needed as we will later sum pixel values when underlaying the image)
@@ -278,7 +278,7 @@ def generate_progress_bar_images(w, h, scale_factor):
         start_angle = -90
         end_angle = -90 + 360/100*percent
         draw.pieslice([(0,0), (h*factor,w*factor)], start_angle, end_angle, fill=255)
-        alpha = alpha.resize((w, h), resample=Image.ANTIALIAS)
+        alpha = alpha.resize((w, h), resample=Image.LANCZOS)
         # apply alpha mask (pie) on the colored square to obtain pie in 7D859D color
         pie = np.dstack((rgb7D859D, np.array(alpha)))
         # set all transparent pixels to black (this is needed as we will later sum pixel values when underlaying the image)
@@ -542,7 +542,7 @@ def process_reference_face_jpg(jpg_content, scale_factor):
 
     # take facial measurements on the non-modified image
     face_loc = get_face_locations(face)
-    face_encoded = face_recognition.face_encodings(face[:, :, ::-1], face_loc, 1, "large")[0]
+    face_encoded = face_recognition.face_encodings(cv2.cvtColor(face, cv2.COLOR_BGR2RGB), face_loc, 1, "large")[0]
 
 
     h, w = face.shape[0], face.shape[1]
