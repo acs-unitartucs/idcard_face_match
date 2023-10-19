@@ -124,7 +124,7 @@ source .venv/bin/activate
 pip3 uninstall dlib
 sudo apt install gcc-10 g++-10
 export CC=/usr/bin/gcc-10
-pip3 --verbose install dlib
+pip3 --verbose --no-cache-dir install dlib
   -- Enabling CUDA support for dlib.  DLIB WILL USE CUDA, compute capabilities: 50
 ```
 
