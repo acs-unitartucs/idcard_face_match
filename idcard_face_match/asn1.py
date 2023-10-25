@@ -110,6 +110,7 @@ def asn1_integer(i: bytes) -> bytes:
     """
     type_byte = b"\x02"
 
+    i = i.lstrip(b"\x00")
     if i[0] >> 7:
         i = b"\x00" + i
     return type_byte + asn1_len(i) + i
