@@ -142,7 +142,7 @@ def chip_auth(security_infos: List[bytes], sm_object: SMObject):
             # exception caught in main program loop
             data = send(
                 sm_object,
-                APDU(b"\x00", b"\x86", b"\x00", b"\x00", Lc=nb(len(payload)), cdata=payload),
+                APDU(b"\x00", b"\x86", b"\x00", b"\x00", Lc=nb(len(payload)), cdata=payload, Le=b"\x00"),
             )
 
             shared_secret = dh_key_pair.compute_dh_key(pk_ic.pub())
