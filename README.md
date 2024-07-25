@@ -6,7 +6,7 @@
  https://opensource.org/licenses/MIT
 -->
 
-# ID card face match: Biometric facial verification using authentic ID card facial image
+# ID card face match: Biometric facial verification using authentic ID card (eMRTD) facial image
 
 ![demo installation](resources/demo_UnitartuCS_days.jpg)
 
